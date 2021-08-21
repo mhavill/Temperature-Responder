@@ -10,10 +10,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-const char *ssid1 = "iiNet3F932B";
-const char *ssid2 = "iiNet3F932B_EXT";
-const char *ssid3 = "iiNet3F932B_5GEXT";
-const char *password = "9000A9000B";
+#include <secrets.h>
 
 const char *device = "Temperature01";
 
@@ -138,6 +135,8 @@ void setup(void)
 
   server.begin();
   Serial.println("HTTP server started");
+  // Add service to MDNS-SD
+  MDNS.addService("http", "tcp", 80);
 }
 
 // function to print the temperature for a device
@@ -178,6 +177,7 @@ void loop(void)
 {
   timer.tick();          // tick the timer
   server.handleClient(); //deal with communications
+  MDNS.update();
 }
 
 // function to print a device address
