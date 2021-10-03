@@ -12,14 +12,14 @@
 
 #include <secrets.h>
 
-const char *device = "Temperature01";
-
 void printAddress(DeviceAddress deviceAddress);
 bool temperature(void *);
 void handleRoot();
 void handleNotFound();
 void sendTemperature(DeviceAddress deviceAddress);
 void insideTemp();
+void handleLedOn();
+void handleLedOff();
 
 auto timer = timer_create_default(); // create a timer with default settings
 
@@ -27,6 +27,7 @@ ESP8266WebServer server(80);
 ESP8266WiFiMulti wifiMulti; // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
 
 const int led = 2;
+bool ledON = true;
 
 // Data wire is plugged into GPIO port 2 on the Arduino - which is D4 on our pinout
 #define ONE_WIRE_BUS 2
@@ -64,8 +65,8 @@ void setup(void)
   Serial.println('\n');
 
   wifiMulti.addAP(ssid1, password); // add Wi-Fi networks you want to connect to
-  wifiMulti.addAP(ssid2, password);
-  wifiMulti.addAP(ssid3, password);
+  // wifiMulti.addAP(ssid2, password);
+  // wifiMulti.addAP(ssid3, password);
 
   // Wait for connection
   Serial.println("Connecting ...");
@@ -125,6 +126,9 @@ void setup(void)
 
   // Handle server communications
   server.on("/", handleRoot);
+
+  server.on("/ledON", handleLedOn);
+  server.on("/ledOFF", handleLedOff);
 
   server.on("/temp", insideTemp);
 
@@ -212,7 +216,7 @@ void insideTemp()
 
 void handleRoot()
 {
-  digitalWrite(led, 1);
+  if(ledON) {digitalWrite(led, 1);}
   String message = "Hello from ";
   message += device;
   message += "! running on ";
@@ -223,7 +227,7 @@ void handleRoot()
 
 void handleNotFound()
 {
-  digitalWrite(led, 1);
+  if(ledON) {digitalWrite(led, 1);}
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += server.uri();
@@ -238,4 +242,12 @@ void handleNotFound()
   }
   server.send(404, "text/plain", message);
   digitalWrite(led, 0);
+}
+
+void handleLedOn() {
+  ledON = true;
+}
+
+void handleLedOff() {
+  ledON = false;
 }
