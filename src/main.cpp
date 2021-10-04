@@ -36,7 +36,7 @@ void setup(void)
   // start serial port
 
   Serial.begin(9600);
-  Serial.println("Dallas Temperature IC Control Library Demo");
+  Serial.println("\nDallas Temperature IC Control Library Demo");
   Serial.print("compiled: ");
   Serial.print(__DATE__);
   Serial.println(__TIME__);
@@ -64,6 +64,28 @@ void setup(void)
   Serial.println(device);
   Serial.println();
 
+    // call the temperature function every 10000 millis (10 seconds)
+  timer.every(10000, temperature);
+
+  // Connect to Arduino IoT Cloud
+  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+  /*
+     The following function allows you to obtain more information
+     related to the state of network and IoT Cloud connection and errors
+     the higher number the more granular information you’ll get.
+     The default is 0 (only errors).
+     Maximum is 4
+  */
+  setDebugMessageLevel(2);
+  ArduinoCloud.printDebugInfo();
+
+    // locate devices on the bus
+  Serial.print("Locating devices...");
+  sensors.begin();
+  Serial.print("Found ");
+  Serial.print(sensors.getDeviceCount(), DEC);
+  Serial.println(" devices.");
+
   // report parasite power requirements
   Serial.print("Parasite power is: ");
   if (sensors.isParasitePowerMode())
@@ -81,26 +103,13 @@ void setup(void)
 
   // set the resolution to 12 bit (Each Dallas/Maxim device is capable of several different resolutions)
   const int RESOLUTION = 12;
-  sensors.setResolution(insideThermometer, RESOLUTION);
+  sensors.setResolution(insideThermometer, RESOLUTION );
 
   Serial.print("Device 0 Resolution: ");
-  Serial.print(sensors.getResolution(insideThermometer), RESOLUTION);
+  Serial.print(sensors.getResolution(insideThermometer), DEC);
   Serial.println();
 
-  // call the temperature function every 10000 millis (10 seconds)
-  timer.every(10000, temperature);
 
-  // Connect to Arduino IoT Cloud
-  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
-  /*
-     The following function allows you to obtain more information
-     related to the state of network and IoT Cloud connection and errors
-     the higher number the more granular information you’ll get.
-     The default is 0 (only errors).
-     Maximum is 4
-  */
-  setDebugMessageLevel(2);
-  ArduinoCloud.printDebugInfo();
 }
 
 /*
