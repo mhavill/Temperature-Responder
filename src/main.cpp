@@ -8,16 +8,30 @@
 #include <secrets.h>
 #include "thingProperties.h"
 
+#include "mesh.h"
+
+#ifdef ESP32
+
+#else
+#include "user_interface.h"
+#endif
+
 void printAddress(DeviceAddress deviceAddress);
 bool temperature(void *);
 void printTemperature(DeviceAddress deviceAddress);
+void sendMessage(); // Prototype so PlatformIO doesn't complain
+void bumpLastCall();
 
 auto timer = timer_create_default(); // create a timer with default settings
 
 const int led = 2;
 
 // Data wire is plugged into GPIO port 2 on the ESP8266
+#ifdef espressif8266
 #define ONE_WIRE_BUS 2
+#else //esp32
+#define ONE_WIRE_BUS 23
+#endif
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -35,7 +49,7 @@ void setup(void)
 {
   // start serial port
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("\nDallas Temperature IC Control Library Demo");
   Serial.print("compiled: ");
   Serial.print(__DATE__);
@@ -45,41 +59,10 @@ void setup(void)
   pinMode(led, OUTPUT);
   digitalWrite(led, 0);
 
-  // Defined in thingProperties.h
-  initProperties();
-
-  WiFi.mode(WIFI_STA);
-  WiFi.hostname(device);
-
-  delay(10);
-  Serial.println('\n');
-  Serial.println("");
-  Serial.print("Connected to ");
-  Serial.println(WiFi.SSID());
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("MAC: ");
-  Serial.println(WiFi.macAddress());
-  Serial.print("Device Name: ");
-  Serial.println(device);
-  Serial.println();
-
-    // call the temperature function every 10000 millis (10 seconds)
+  // call the temperature function every 10000 millis (10 seconds)
   timer.every(10000, temperature);
 
-  // Connect to Arduino IoT Cloud
-  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
-  /*
-     The following function allows you to obtain more information
-     related to the state of network and IoT Cloud connection and errors
-     the higher number the more granular information you’ll get.
-     The default is 0 (only errors).
-     Maximum is 4
-  */
-  setDebugMessageLevel(2);
-  ArduinoCloud.printDebugInfo();
-
-    // locate devices on the bus
+  // locate devices on the bus
   Serial.print("Locating devices...");
   sensors.begin();
   Serial.print("Found ");
@@ -103,13 +86,13 @@ void setup(void)
 
   // set the resolution to 12 bit (Each Dallas/Maxim device is capable of several different resolutions)
   const int RESOLUTION = 12;
-  sensors.setResolution(insideThermometer, RESOLUTION );
+  sensors.setResolution(insideThermometer, RESOLUTION);
 
   Serial.print("Device 0 Resolution: ");
   Serial.print(sensors.getResolution(insideThermometer), DEC);
   Serial.println();
 
-
+  meshSetup();
 }
 
 /*
@@ -118,7 +101,7 @@ void setup(void)
 void loop(void)
 {
   timer.tick(); // tick the timer
-  ArduinoCloud.update();
+  meshLoop();
 }
 
 // function to print a device address
@@ -138,26 +121,46 @@ bool temperature(void *)
   // request to all devices on the bus
   Serial.print("   Requesting temperatures...");
   sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  Serial.println("");
+  Serial.print("DONE\t");
 
   // It responds almost immediately. Let's print out the data
   printTemperature(insideThermometer); // Use a simple function to print out the data
   return true;
 }
 
-
 // function to print the temperature for a device
 void printTemperature(DeviceAddress deviceAddress)
 {
-  float tempC = sensors.getTempC(deviceAddress);
+  tempC = sensors.getTempC(deviceAddress);
   if (tempC == DEVICE_DISCONNECTED_C)
   {
     Serial.println("Error: Could not read temperature data");
     return;
   }
-  Serial.print("Temp C: ");
+  Serial.print(device);
+  Serial.print("\tC: ");
   Serial.print(tempC);
-  //Send to IOT Cloud
-  setTemp(tempC);
+
+  Serial.print("\tBroadcastCount: ");
+  Serial.println(++broadcastCount);
+  bumpLastCall();
+}
+
+void bumpLastCall()
+{
+  int lcTotal = 0;
+  for (int i = 0; i <= 4; ++i)
+  {
+    nodearray[i].lastcall++;
+    lcTotal = lcTotal + nodearray[i].lastcall;
+  }
+  if (lcTotal >= 60)
+  {
+    Serial.println("Oh No!!  -- last call total over 60! - RESETTING");
+#ifdef ESP32
+    ESP.restart();
+#else
+    ESP.reset();
+#endif
+  }
 }
