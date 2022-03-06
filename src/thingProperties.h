@@ -34,7 +34,7 @@ char *device = "Temperature02";
 char *device = "Temperature05";
 #endif
 
-const int MAXLASTCALL = 60;
+const int MAXLASTCALL = 600;
 
 
 

@@ -3,12 +3,11 @@
  * Name:Temperature.cpp
  * Purpose: Setup and obtain temperature readings and pass them to the controller
  * Created Date: 02/09/2022
-*******************************/
-
+ *******************************/
 
 /*******************************
  * Includes
-*******************************/
+ *******************************/
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #ifndef MESH
@@ -17,7 +16,7 @@
 #endif
 /*******************************
  * Protptypes
-*******************************/
+ *******************************/
 void temperatureSetup();
 void printAddress(DeviceAddress deviceAddress);
 bool temperature(void *);
@@ -25,7 +24,7 @@ void printTemperature(DeviceAddress deviceAddress);
 
 /*******************************
  * Definitions
-*******************************/
+ *******************************/
 
 // Data wire is plugged into
 #ifdef espressif8266
@@ -42,10 +41,12 @@ DallasTemperature sensors(&oneWire);
 
 // arrays to hold device address
 DeviceAddress insideThermometer;
+
 /*******************************
  * Setup
-*******************************/
-void temperatureSetup(){
+ *******************************/
+void temperatureSetup()
+{
   // locate devices on the bus
   Serial.print("Locating devices...");
   sensors.begin();
@@ -79,11 +80,11 @@ void temperatureSetup(){
 
 /*******************************
  * Loop
-*******************************/
+ *******************************/
 
 /*******************************
  * Utility Functions
-*******************************/
+ *******************************/
 // function to print a device address
 void printAddress(DeviceAddress deviceAddress)
 {
@@ -123,10 +124,11 @@ void printTemperature(DeviceAddress deviceAddress)
   Serial.print("\tC: ");
   Serial.print(tempC);
   Serial.print("\n ");
+  // DEBUG
+  //  nodearray[4].temp = tempC;
+  //  sendMessage();
 }
-
-
 
 /*******************************
  * Finite State Machine
-*******************************/
+ *******************************/

@@ -29,6 +29,8 @@
 void aiotcSetup();
 bool AIOTCupdate(void *);
 void initProperties();
+void reconnect();
+void wifiConnect();
 /*******************************
  * Definitions
  *******************************/
@@ -42,12 +44,16 @@ WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);
 void aiotcSetup()
 {
 #ifdef IOTCLOUD
+
+  wifiConnect();
+
+  delay(2000);
   initProperties();
 
   // Connect to Arduino IoT Cloud
   ArduinoCloud.begin(ArduinoIoTPreferredConnection);
 
-  setDebugMessageLevel(2);
+  setDebugMessageLevel(4);
   ArduinoCloud.printDebugInfo();
 #endif
 }
@@ -58,16 +64,23 @@ void aiotcSetup()
 bool AIOTCupdate(void *)
 {
 #ifdef IOTCLOUD
+  if (!ArduinoCloud.connected())
+    reconnect();
+
   ArduinoCloud.update();
-  if (ArduinoCloud.connected())
-  {
-    ArduinoCloudConnected = true;
-  }
-  else
-  {
-    ArduinoCloudConnected = false;
-      ArduinoCloud.begin(ArduinoIoTPreferredConnection);
-  }
+  // if (ArduinoCloud.connected())
+  // {
+  //   ArduinoCloudConnected = true;
+  // }
+  // else
+  // {
+  // // Serial.println ("lost connection to AIOTC");
+  //   ArduinoCloudConnected = false;
+  //     ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+  // }
+
+// Serial.println("Updating AIOTC");
+// ArduinoCloud.update();
 #endif
   return true;
 }
@@ -90,6 +103,59 @@ void initProperties()
   ArduinoCloud.addProperty(temp01, READ, 10 * SECONDS, NULL);
   ArduinoCloud.addProperty(temp02, READ, 10 * SECONDS, NULL);
 #endif
+}
+
+//=====================================
+void reconnect()
+{
+  wifiConnect();
+  // Loop until we're reconnected
+  while (!ArduinoCloud.connected())
+  {
+    Serial.print("Attempting MQTT connection...");
+    // Connect to Arduino IoT Cloud
+    ArduinoCloud.update();
+
+    // String clientId = "ESP8266Client-";   // Create a random client ID
+    // clientId += String(random(0xffff), HEX);
+
+    // Attempt to connect
+    if (ArduinoCloud.connected())
+    {
+      Serial.println("AIOTC connected");
+
+      //   client.subscribe(command1_topic);   // subscribe the topics here
+      //   //client.subscribe(command2_topic);   // subscribe the topics here
+    }
+    else
+    {
+      Serial.print("failed, rc=");
+      ArduinoCloud.printDebugInfo();
+      Serial.println(" try again in 5 seconds"); // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+void wifiConnect()
+{
+  delay(10);
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    WiFi.setAutoReconnect(true);
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.begin(SSID, PASS);
+
+    Serial.print("\nConnecting to ");
+    Serial.println(SSID);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+  }
+  Serial.print("\nWiFi connected\nIP address: ");
+  Serial.println(WiFi.localIP());
 }
 
 /*******************************
