@@ -45,15 +45,15 @@ void aiotcSetup()
 {
 #ifdef IOTCLOUD
 
-  wifiConnect();
+  // wifiConnect();
 
-  delay(2000);
+  // delay(2000);
   initProperties();
 
   // Connect to Arduino IoT Cloud
   ArduinoCloud.begin(ArduinoIoTPreferredConnection);
 
-  setDebugMessageLevel(4);
+  setDebugMessageLevel(2);
   ArduinoCloud.printDebugInfo();
 #endif
 }

@@ -26,10 +26,8 @@
 Scheduler userScheduler; // to control your personal task
 painlessMesh mesh;
 
-
 #define STATION_PORT 5555
 uint8_t station_ip[4] = {0, 0, 0, 0}; // IP of the server
-
 
 struct nodedata
 {
@@ -54,10 +52,10 @@ Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
 
 void sendMessage()
 {
-  #ifdef ESP32
-    freeMem = ESP.getFreeHeap();
+#ifdef ESP32
+  freeMem = ESP.getFreeHeap();
 #else
-    freeMem = system_get_free_heap_size();
+  freeMem = system_get_free_heap_size();
 #endif
   String msg = " N:";
   msg += device;
@@ -68,16 +66,16 @@ void sendMessage()
   msg += "\n";
   // mesh.sendBroadcast(msg);
   bool broadcast = mesh.sendBroadcast(msg);
-    if (broadcast)
-    {
-      Serial.println("Message sent ok");
-    }
-    else
-    {
-      Serial.println("Broadcast not sent!!!!");
-    }
-    storeInNodeArray(msg);
-    printNodeArray();
+  if (broadcast)
+  {
+    Serial.println("Message sent ok");
+  }
+  else
+  {
+    Serial.println("Broadcast not sent!!!!");
+  }
+  storeInNodeArray(msg);
+  printNodeArray();
   taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
 }
 
@@ -114,20 +112,21 @@ void meshSetup()
 
   // mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
   //  mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
-  mesh.setDebugMsgTypes(ERROR | MESH_STATUS | SYNC | MSG_TYPES);
+  mesh.setDebugMsgTypes(ERROR | MESH_STATUS | SYNC | MSG_TYPES | STARTUP);
 
   // mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
-      // Channel set to 6. Make sure to use the same channel for your mesh and for you other
-    // network (STATION_SSID)
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
+  // Channel set to 6. Make sure to use the same channel for your mesh and for you other
+  // network (STATION_SSID)
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
 #ifdef ESP32
-    // Setup over the air update support
-    mesh.initOTAReceive("bridge");
+  // Setup over the air update support
+  // mesh.initOTAReceive("bridge");
 
-    mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
+  // mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
+  mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT);
 #else
 
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
 
 #endif
   mesh.onReceive(&receivedCallback);
@@ -234,311 +233,311 @@ void printNodeArray()
 #include <arduino-timer.h>
 #endif
 
-  /*******************************
-   * Protptypes
-   *******************************/
-  void meshSetup();
-  void meshLoop();
-  void sendMessage();
-  void receivedCallback(uint32_t from, String & msg);
-  void newConnectionCallback(uint32_t nodeId);
-  void changedConnectionCallback();
-  void nodeTimeAdjustedCallback(int32_t offset);
-  void delayReceivedCallback(uint32_t from, int32_t delay);
-  void storeInNodeArray(String msg);
-  void printNodeArray();
-  bool bumpLastCall(void *);
-  bool sendMessage2(void *);
-  bool meshupdate2(void *);
-  bool showNodes(void *);
-  IPAddress getlocalIP();
+/*******************************
+ * Protptypes
+ *******************************/
+void meshSetup();
+void meshLoop();
+void sendMessage();
+void receivedCallback(uint32_t from, String &msg);
+void newConnectionCallback(uint32_t nodeId);
+void changedConnectionCallback();
+void nodeTimeAdjustedCallback(int32_t offset);
+void delayReceivedCallback(uint32_t from, int32_t delay);
+void storeInNodeArray(String msg);
+void printNodeArray();
+bool bumpLastCall(void *);
+bool sendMessage2(void *);
+bool meshupdate2(void *);
+bool showNodes(void *);
+IPAddress getlocalIP();
 
 // /*******************************
 //  * Definitions
 //  *******************************/
 #define LED 2 // GPIO number of connected LED, ON ESP-12 IS GPIO2
 
-  painlessMesh mesh;
-  Scheduler userScheduler;                                           // to control your personal task
-  Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage); // start with a one second interval
-  auto timer_mesh = timer_create_default();                          // create a timer with default settings
-  uint32_t freeMem;
+painlessMesh mesh;
+Scheduler userScheduler;                                           // to control your personal task
+Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage); // start with a one second interval
+auto timer_mesh = timer_create_default();                          // create a timer with default settings
+uint32_t freeMem;
 
 #define STATION_PORT 5555
-  uint8_t station_ip[4] = {0, 0, 0, 0}; // IP of the server
+uint8_t station_ip[4] = {0, 0, 0, 0}; // IP of the server
 
-  bool calc_delay = false;
-  SimpleList<uint32_t> nodes;
+bool calc_delay = false;
+SimpleList<uint32_t> nodes;
 
-  struct nodedata
-  {
-    int nodeid;
-    float temp;
-    int lastcall;
-    int status;
-  };
+struct nodedata
+{
+  int nodeid;
+  float temp;
+  int lastcall;
+  int status;
+};
 
-  nodedata nodearray[5];
+nodedata nodearray[5];
 
-  float tempC;
-  int broadcastCount;
+float tempC;
+int broadcastCount;
 
-  bool meshConnected = false;
+bool meshConnected = false;
 
-  // /*******************************
-  //  * Setup
-  //  *******************************/
-  void meshSetup()
-  {
+// /*******************************
+//  * Setup
+//  *******************************/
+void meshSetup()
+{
 
-    pinMode(LED, OUTPUT);
+  pinMode(LED, OUTPUT);
 
-    // mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
-    // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG);
-    // mesh.setDebugMsgTypes(ERROR | DEBUG | STARTUP); // set before init() so that you can see error messages
-    mesh.setDebugMsgTypes(ERROR | MESH_STATUS | SYNC | MSG_TYPES);
-    // Channel set to 6. Make sure to use the same channel for your mesh and for you other
-    // network (STATION_SSID)
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
+  // mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
+  // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE | DEBUG);
+  // mesh.setDebugMsgTypes(ERROR | DEBUG | STARTUP); // set before init() so that you can see error messages
+  mesh.setDebugMsgTypes(ERROR | MESH_STATUS | SYNC | MSG_TYPES);
+  // Channel set to 6. Make sure to use the same channel for your mesh and for you other
+  // network (STATION_SSID)
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
 #ifdef ESP32
-    // Setup over the air update support
-    mesh.initOTAReceive("bridge");
+  // Setup over the air update support
+  mesh.initOTAReceive("bridge");
 
-    mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
+  mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT, station_ip);
 #else
 
-    mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
 
 #endif
-    mesh.onReceive(&receivedCallback);
-    mesh.onNewConnection(&newConnectionCallback);
-    mesh.onChangedConnections(&changedConnectionCallback);
-    mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
-    mesh.onNodeDelayReceived(&delayReceivedCallback);
+  mesh.onReceive(&receivedCallback);
+  mesh.onNewConnection(&newConnectionCallback);
+  mesh.onChangedConnections(&changedConnectionCallback);
+  mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
+  mesh.onNodeDelayReceived(&delayReceivedCallback);
 
-    userScheduler.addTask(taskSendMessage);
-    taskSendMessage.enable();
+  userScheduler.addTask(taskSendMessage);
+  taskSendMessage.enable();
 #ifdef ESP32
-    // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
-    mesh.setRoot(true);
+  // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
+  mesh.setRoot(true);
 #else
-    mesh.setRoot(false);
+  mesh.setRoot(false);
 #endif
-    // This node and all other nodes should ideally know the mesh contains a root, so call this on all nodes
-    mesh.setContainsRoot(true);
-    Serial.print("getStationIP: ");
-    Serial.print(mesh.getStationIP());
-    Serial.print("\tMesh APIP: ");
-    Serial.println(mesh.getAPIP());
+  // This node and all other nodes should ideally know the mesh contains a root, so call this on all nodes
+  mesh.setContainsRoot(true);
+  Serial.print("getStationIP: ");
+  Serial.print(mesh.getStationIP());
+  Serial.print("\tMesh APIP: ");
+  Serial.println(mesh.getAPIP());
 
-    // meshConnected = true;
-    timer_mesh.every(9000, sendMessage2); // Mesh Broadcast
-    // timer_mesh.every(5000, meshupdate2);
-    timer_mesh.every(5000, showNodes);
-    timer_mesh.every(10000, bumpLastCall); // A mesh function
-  }
-  /*******************************
-   * Loop
-   *******************************/
-  // bool meshupdate2(void *)
-  // {
-  //   Serial.println("updating mesh");
+  // meshConnected = true;
+  timer_mesh.every(9000, sendMessage2); // Mesh Broadcast
+  // timer_mesh.every(5000, meshupdate2);
+  timer_mesh.every(5000, showNodes);
+  timer_mesh.every(10000, bumpLastCall); // A mesh function
+}
+/*******************************
+ * Loop
+ *******************************/
+// bool meshupdate2(void *)
+// {
+//   Serial.println("updating mesh");
 
-  //   mesh.update();
-  //   Serial.print("getStationIP: ");
-  //   Serial.print(mesh.getStationIP());
-  //   Serial.print("\tMesh APIP: ");
-  //   Serial.println(mesh.getAPIP());
-  //   // sendMessage();
-  //   // changedConnectionCallback();
-  //   // printNodeArray();
-  //   return true;
-  // }
-  void meshLoop()
-  {
-    mesh.update();
-    // sendMessage();
-    // changedConnectionCallback();
-    // printNodeArray();
-  }
-  /*******************************
-   * Utility Functions
-   *******************************/
-  void receivedCallback(uint32_t from, String & msg)
-  {
+//   mesh.update();
+//   Serial.print("getStationIP: ");
+//   Serial.print(mesh.getStationIP());
+//   Serial.print("\tMesh APIP: ");
+//   Serial.println(mesh.getAPIP());
+//   // sendMessage();
+//   // changedConnectionCallback();
+//   // printNodeArray();
+//   return true;
+// }
+void meshLoop()
+{
+  mesh.update();
+  // sendMessage();
+  // changedConnectionCallback();
+  // printNodeArray();
+}
+/*******************************
+ * Utility Functions
+ *******************************/
+void receivedCallback(uint32_t from, String &msg)
+{
 #ifdef ESP32
-    Serial.printf("bridge: Received from %u msg=%s\n", from, msg.c_str());
+  Serial.printf("bridge: Received from %u msg=%s\n", from, msg.c_str());
 #else
-    Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
+  Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
 #endif
-    storeInNodeArray(msg);
-  }
+  storeInNodeArray(msg);
+}
 
-  void storeInNodeArray(String msg)
+void storeInNodeArray(String msg)
+{
+  char *end;
+  std::string temperature = msg.c_str();
+
+  std::string mDelimiter = "M:";
+  std::string memToken = temperature.substr(temperature.find(mDelimiter) + 2); // extract to end
+  const char *nodeMem = memToken.c_str();
+
+  std::string cDelimiter = "C:";
+  std::string tempToken = temperature.substr(temperature.find(cDelimiter) + 2, temperature.find(mDelimiter) - 4);
+  const char *tempC = tempToken.c_str();
+
+  std::string nDelimiter = "N:";
+  std::string nodeToken = temperature.substr(temperature.find(nDelimiter) + 2, temperature.find(cDelimiter) - 4);
+  int zeroPoint = nodeToken.find("0");
+  std::string subNodeToken = nodeToken.substr(zeroPoint);
+
+  int node = atoi(subNodeToken.c_str()) - 1; // Adjusted for array
+  nodearray[node].temp = std::strtod(tempC, &end);
+  nodearray[node].lastcall = 0;
+  nodearray[node].nodeid = node + 1;
+  nodearray[node].status = std::strtod(nodeMem, &end);
+}
+
+void newConnectionCallback(uint32_t nodeId)
+{
+  Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
+  Serial.printf("--> startHere: New Connection, %s\n", mesh.subConnectionJson(true).c_str());
+}
+
+bool showNodes(void *)
+{
+  // changedConnectionCallback();
+  return true;
+}
+void changedConnectionCallback()
+{
+  Serial.printf("Changed connections\n");
+
+  nodes = mesh.getNodeList();
+
+  Serial.printf("Num nodes: %d\n", nodes.size());
+  Serial.printf("Connection list:");
+
+  SimpleList<uint32_t>::iterator node = nodes.begin();
+  while (node != nodes.end())
   {
-    char *end;
-    std::string temperature = msg.c_str();
-
-    std::string mDelimiter = "M:";
-    std::string memToken = temperature.substr(temperature.find(mDelimiter) + 2); // extract to end
-    const char *nodeMem = memToken.c_str();
-
-    std::string cDelimiter = "C:";
-    std::string tempToken = temperature.substr(temperature.find(cDelimiter) + 2, temperature.find(mDelimiter) - 4);
-    const char *tempC = tempToken.c_str();
-
-    std::string nDelimiter = "N:";
-    std::string nodeToken = temperature.substr(temperature.find(nDelimiter) + 2, temperature.find(cDelimiter) - 4);
-    int zeroPoint = nodeToken.find("0");
-    std::string subNodeToken = nodeToken.substr(zeroPoint);
-
-    int node = atoi(subNodeToken.c_str()) - 1; // Adjusted for array
-    nodearray[node].temp = std::strtod(tempC, &end);
-    nodearray[node].lastcall = 0;
-    nodearray[node].nodeid = node + 1;
-    nodearray[node].status = std::strtod(nodeMem, &end);
+    Serial.printf(" %u", *node);
+    node++;
   }
+  Serial.println();
+  calc_delay = true;
+}
 
-  void newConnectionCallback(uint32_t nodeId)
+void nodeTimeAdjustedCallback(int32_t offset)
+{
+  Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
+}
+
+void delayReceivedCallback(uint32_t from, int32_t delay)
+{
+  Serial.printf("Delay to node %u is %d us\n", from, delay);
+}
+void printNodeArray()
+{
+  int callTotal = 0;
+  Serial.print("\nNode: ");
+  Serial.print("\tTemp: ");
+  Serial.print("\t\tLastcall: ");
+  Serial.print("\tStatus: ");
+  Serial.print("\n");
+  for (int node = 0; node <= 4; ++node)
   {
-    Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
-    Serial.printf("--> startHere: New Connection, %s\n", mesh.subConnectionJson(true).c_str());
+    Serial.print(nodearray[node].nodeid);
+    Serial.print("\t");
+    Serial.print(nodearray[node].temp);
+    Serial.print("\t\t");
+    Serial.print(nodearray[node].lastcall);
+    Serial.print("\t\t");
+    Serial.print(nodearray[node].status);
+    Serial.print("\n");
+    callTotal = callTotal + nodearray[node].lastcall;
   }
+  Serial.print("\n\n");
 
-  bool showNodes(void *)
+  if (callTotal >= MAXLASTCALL)
   {
-    // changedConnectionCallback();
-    return true;
+    Serial.println("Last Call Count MAXED OUT! ... Restarting ");
+    delay(5000);
+    // ESP.restart();
   }
-  void changedConnectionCallback()
+}
+
+bool sendMessage2(void *)
+{
+  Serial.println("Sending Message ");
+  sendMessage();
+  return true;
+}
+
+bool bumpLastCall(void *)
+{
+  Serial.println("Bumping ");
+  for (int i = 0; i <= 4; ++i)
   {
-    Serial.printf("Changed connections\n");
+    nodearray[i].lastcall++;
+  }
+  count = ++broadcastCount;
+  temp01 = nodearray[0].temp;
+  temp02 = nodearray[1].temp;
+  temp03 = nodearray[2].temp;
+  temp04 = nodearray[3].temp;
+  temp05 = nodearray[4].temp;
 
-    nodes = mesh.getNodeList();
+  return true;
+}
+IPAddress getlocalIP()
+{
+  return IPAddress(mesh.getStationIP());
+}
 
-    Serial.printf("Num nodes: %d\n", nodes.size());
-    Serial.printf("Connection list:");
+void sendMessage()
+{
 
+#ifdef ESP32
+  freeMem = ESP.getFreeHeap();
+#else
+  freeMem = system_get_free_heap_size();
+#endif
+
+  String msg = " N:";
+  msg += device;
+  msg += " C:";
+  msg += tempC;
+  msg += " M:";
+  msg += freeMem;
+  msg += "\n";
+  bool broadcast = mesh.sendBroadcast(msg);
+  if (broadcast)
+  {
+    Serial.println("Message sent ok");
+  }
+  else
+  {
+    Serial.println("Broadcast not sent!!!!");
+  }
+  storeInNodeArray(msg);
+  printNodeArray();
+
+  if (calc_delay)
+  {
     SimpleList<uint32_t>::iterator node = nodes.begin();
     while (node != nodes.end())
     {
-      Serial.printf(" %u", *node);
+      mesh.startDelayMeas(*node);
       node++;
     }
-    Serial.println();
-    calc_delay = true;
+    calc_delay = false;
   }
 
-  void nodeTimeAdjustedCallback(int32_t offset)
-  {
-    Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
-  }
+  // Serial.printf("Sending message: %s\n", msg.c_str());
 
-  void delayReceivedCallback(uint32_t from, int32_t delay)
-  {
-    Serial.printf("Delay to node %u is %d us\n", from, delay);
-  }
-  void printNodeArray()
-  {
-    int callTotal = 0;
-    Serial.print("\nNode: ");
-    Serial.print("\tTemp: ");
-    Serial.print("\t\tLastcall: ");
-    Serial.print("\tStatus: ");
-    Serial.print("\n");
-    for (int node = 0; node <= 4; ++node)
-    {
-      Serial.print(nodearray[node].nodeid);
-      Serial.print("\t");
-      Serial.print(nodearray[node].temp);
-      Serial.print("\t\t");
-      Serial.print(nodearray[node].lastcall);
-      Serial.print("\t\t");
-      Serial.print(nodearray[node].status);
-      Serial.print("\n");
-      callTotal = callTotal + nodearray[node].lastcall;
-    }
-    Serial.print("\n\n");
-
-    if (callTotal >= MAXLASTCALL)
-    {
-      Serial.println("Last Call Count MAXED OUT! ... Restarting ");
-      delay(5000);
-      // ESP.restart();
-    }
-  }
-
-  bool sendMessage2(void *)
-  {
-    Serial.println("Sending Message ");
-    sendMessage();
-    return true;
-  }
-
-  bool bumpLastCall(void *)
-  {
-    Serial.println("Bumping ");
-    for (int i = 0; i <= 4; ++i)
-    {
-      nodearray[i].lastcall++;
-    }
-    count = ++broadcastCount;
-    temp01 = nodearray[0].temp;
-    temp02 = nodearray[1].temp;
-    temp03 = nodearray[2].temp;
-    temp04 = nodearray[3].temp;
-    temp05 = nodearray[4].temp;
-
-    return true;
-  }
-  IPAddress getlocalIP()
-  {
-    return IPAddress(mesh.getStationIP());
-  }
-
-  void sendMessage()
-  {
-
-#ifdef ESP32
-    freeMem = ESP.getFreeHeap();
-#else
-    freeMem = system_get_free_heap_size();
-#endif
-
-    String msg = " N:";
-    msg += device;
-    msg += " C:";
-    msg += tempC;
-    msg += " M:";
-    msg += freeMem;
-    msg += "\n";
-    bool broadcast = mesh.sendBroadcast(msg);
-    if (broadcast)
-    {
-      Serial.println("Message sent ok");
-    }
-    else
-    {
-      Serial.println("Broadcast not sent!!!!");
-    }
-    storeInNodeArray(msg);
-    printNodeArray();
-
-    if (calc_delay)
-    {
-      SimpleList<uint32_t>::iterator node = nodes.begin();
-      while (node != nodes.end())
-      {
-        mesh.startDelayMeas(*node);
-        node++;
-      }
-      calc_delay = false;
-    }
-
-    // Serial.printf("Sending message: %s\n", msg.c_str());
-
-    taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5)); // between 1 and 5 seconds
-  }
+  taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5)); // between 1 and 5 seconds
+}
 
 // /*******************************
 //  * Finite State Machine

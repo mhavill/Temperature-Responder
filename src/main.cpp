@@ -58,8 +58,8 @@ void loop();
 auto timer_temp = timer_create_default();  // create a timer with default settings
 auto timer_AIOTC = timer_create_default(); // create a timer with default settings
 
-// auto timer_bump = timer_create_default(); // create a timer with defalt settings
-// auto timer_send = timer_create_default(); // create a timer with default settings
+auto timer_bump = timer_create_default(); // create a timer with defalt settings
+auto timer_send = timer_create_default(); // create a timer with default settings
 
 const int led = 2;
 IPAddress myIP(0, 0, 0, 0);
@@ -96,8 +96,8 @@ void setup()
 
   delay(5000);
 
-  timer_AIOTC.every(4000, AIOTCupdate); // Cloud update
-  timer_temp.every(5000, temperature);  // temperature function
+  timer_AIOTC.every(10000, AIOTCupdate); // Cloud update
+  timer_temp.every(2000, temperature);  // temperature function
 
   // mesh
   // meshSetup();
