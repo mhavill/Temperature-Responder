@@ -28,7 +28,8 @@
  *******************************/
 void aiotcSetup();
 bool AIOTCupdate(void *);
-void initProperties();
+void AIOTCinitProperties();
+// void initProperties();
 void reconnect();
 void wifiConnect();
 /*******************************
@@ -88,7 +89,7 @@ bool AIOTCupdate(void *)
  * Utility Functions
  *******************************/
 
-void initProperties()
+void AIOTCinitProperties()
 {
 #ifdef IOTCLOUD
   ArduinoCloudConnected = false;
@@ -106,57 +107,57 @@ void initProperties()
 }
 
 //=====================================
-void reconnect()
-{
-  wifiConnect();
-  // Loop until we're reconnected
-  while (!ArduinoCloud.connected())
-  {
-    Serial.print("Attempting MQTT connection...");
-    // Connect to Arduino IoT Cloud
-    ArduinoCloud.update();
+// void reconnect()
+// {
+//   wifiConnect();
+//   // Loop until we're reconnected
+//   while (!ArduinoCloud.connected())
+//   {
+//     Serial.print("Attempting MQTT connection...");
+//     // Connect to Arduino IoT Cloud
+//     ArduinoCloud.update();
 
-    // String clientId = "ESP8266Client-";   // Create a random client ID
-    // clientId += String(random(0xffff), HEX);
+//     // String clientId = "ESP8266Client-";   // Create a random client ID
+//     // clientId += String(random(0xffff), HEX);
 
-    // Attempt to connect
-    if (ArduinoCloud.connected())
-    {
-      Serial.println("AIOTC connected");
+//     // Attempt to connect
+//     if (ArduinoCloud.connected())
+//     {
+//       Serial.println("AIOTC connected");
 
-      //   client.subscribe(command1_topic);   // subscribe the topics here
-      //   //client.subscribe(command2_topic);   // subscribe the topics here
-    }
-    else
-    {
-      Serial.print("failed, rc=");
-      ArduinoCloud.printDebugInfo();
-      Serial.println(" try again in 5 seconds"); // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
+//       //   client.subscribe(command1_topic);   // subscribe the topics here
+//       //   //client.subscribe(command2_topic);   // subscribe the topics here
+//     }
+//     else
+//     {
+//       Serial.print("failed, rc=");
+//       ArduinoCloud.printDebugInfo();
+//       Serial.println(" try again in 5 seconds"); // Wait 5 seconds before retrying
+//       delay(5000);
+//     }
+//   }
+// }
 
-void wifiConnect()
-{
-  delay(10);
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    WiFi.setAutoReconnect(true);
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.begin(SSID, PASS);
+// void wifiConnect()
+// {
+//   delay(10);
+//   if (WiFi.status() != WL_CONNECTED)
+//   {
+//     WiFi.setAutoReconnect(true);
+//     WiFi.mode(WIFI_AP_STA);
+//     WiFi.begin(SSID, PASS);
 
-    Serial.print("\nConnecting to ");
-    Serial.println(SSID);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-      delay(500);
-      Serial.print(".");
-    }
-  }
-  Serial.print("\nWiFi connected\nIP address: ");
-  Serial.println(WiFi.localIP());
-}
+//     Serial.print("\nConnecting to ");
+//     Serial.println(SSID);
+//     while (WiFi.status() != WL_CONNECTED)
+//     {
+//       delay(500);
+//       Serial.print(".");
+//     }
+//   }
+//   Serial.print("\nWiFi connected\nIP address: ");
+//   Serial.println(WiFi.localIP());
+// }
 
 /*******************************
  * Finite State Machine

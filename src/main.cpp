@@ -33,19 +33,24 @@
 
 #include <AIOTC.hpp>
 
-#ifndef MESH
-#include <Mesh.hpp>
-#define MESH
-#endif //MESH
+#ifndef VANMESH
+#include <vanMesh.hpp>
+#define VANMESH
+#endif // VANMESH
 
-#include <PushNotification.hpp>
+// #include <PushNotification.hpp>
 
 #ifdef ESP32
 #include <WiFiClientSecure.h>
 #else
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
-#endif //ESP32
+#endif // ESP32
+
+#include <time.h>
+#include <sys/time.h>
+
+
 
 /*******************************
  * Protptypes
@@ -62,16 +67,28 @@ auto timer_bump = timer_create_default(); // create a timer with defalt settings
 auto timer_send = timer_create_default(); // create a timer with default settings
 
 const int led = 2;
-IPAddress myIP(0, 0, 0, 0);
+
 WiFiClient wifiClient;
 bool AIOTCconnected = false;
+
+#undef max
+#undef min
+
+extern "C"
+{
+  int _write(int fd, char *ptr, int len)
+  {
+    (void)fd;
+    return Serial.write(ptr, len);
+  }
+}
 
 /*******************************
  * Setup
  *******************************/
 void setup()
 {
-  delay(5000); //time to start monitor
+  delay(5000); // time to start monitor
   Serial.begin(115200);
 
   Serial.println("\nHome IOT Control Mesh");
@@ -83,13 +100,15 @@ void setup()
   pinMode(led, OUTPUT);
   digitalWrite(led, 0);
 
+  // Device Properties
+  initProperties();
+
   // Temperature
   temperatureSetup();
   // delay(1000);
 
   // AIOTC
   aiotcSetup();
- 
 
   // Push Notifications
   // prowlSetup();
@@ -97,11 +116,11 @@ void setup()
   delay(5000);
 
   timer_AIOTC.every(10000, AIOTCupdate); // Cloud update
-  timer_temp.every(2000, temperature);  // temperature function
+  timer_temp.every(2000, temperature);   // temperature function
 
   // mesh
-  // meshSetup();
-}
+  vanMeshSetup();
+  }
 
 /*******************************
  * Loop
@@ -109,11 +128,11 @@ void setup()
 void loop()
 {
 
-  // meshLoop();
+  vanMeshLoop();
   timer_AIOTC.tick(); // tick the timer - looks after temperature, mesh and AIOTC
-  #ifdef FINAL
+#ifdef FINAL
   timer_mesh.tick();
-  #endif  //FINAL
+#endif // FINAL
   timer_temp.tick();
 
   // if (!prowlsent)

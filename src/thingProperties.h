@@ -1,14 +1,35 @@
+/*******************************
+ * Header
+ * Name: thingProperties.h
+ * Purpose: Defines the configuration of this thing (from Arduino IoT Cloud)
+ * Created Date: 25/03/2022
+*******************************/
+// TODO remove unused code
+
+/*******************************
+ * Includes
+*******************************/
+#include <cstring>
 
 #ifdef IOTCLOUD
-#include <ArduinoIoTCloud.h>
-#include <Arduino_ConnectionHandler.h>
-#endif
+  #include <ArduinoIoTCloud.h>
+  #include <Arduino_ConnectionHandler.h>
+#endif // IOTCLOUD
 
 #ifndef SECRETS
-#include <secrets.h>
+  #include <secrets.h>
 #define SECRETS
 #endif
 
+
+/*******************************
+ * Protptypes
+*******************************/
+void initProperties();
+
+/*******************************
+ * Definitions
+*******************************/
 
 #ifdef IOTCLOUD
     #ifdef espressif8266
@@ -27,17 +48,79 @@ float temp03;
 float temp04;
 float temp05;
 int count;
-char *ESPPROWL_APP_NAME = "Relay Alerts";
-#ifdef ESP32
-char *device = "Temperature02";
-#else
-char *device = "Temperature05";
-#endif
+char ESPPROWL_APP_NAME[] = "Relay Alerts";
+
 
 const int MAXLASTCALL = 600;
 
+// #ifdef IOTCLOUD // is this a 'bridge' node?
+// const char THING_ID[] = "819ce20c-d5cc-487a-bce0-c971cd822ec5";
+
+// // const char DEVICE_LOGIN_NAME[]  = "a08dbba9-73b0-4866-8beb-137975873db9"; //Wroom1
+// const char DEVICE_LOGIN_NAME[] = "6b14735d-83b0-495b-9919-107f6c5d90e7"; // Wroom2
 
 
+// WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);
+
+
+
+
+struct nodedata
+{
+    int nodeid;
+    char name[12];
+    double data1;    //e.g. Latitude, temperature
+    double data2;    //e.g. Longitude
+    double data3;    //e.g. Speed
+    int lastcall;
+    int status;
+    char date[14];
+    char time[14];
+    
+};
+
+const int NODE_COUNT = 7;
+nodedata nodearray[NODE_COUNT];
+
+enum Nodes {GPS01, Temp02, Temp03, Temp04, Temp05, Sound06, PIR07};
+
+char namearray[NODE_COUNT][10] = {"GPS01", "Temp02", "Temp03", "Temp04", "Temp05", "Sound06","PIR07"};
+const int node = Temp02;
+
+bool initialised = false;
+
+/*******************************
+ * Setup
+*******************************/
+void initProperties()
+{
+initialised = false;
+std::strcpy (namearray[GPS01],"GPS01");
+std::strcpy (namearray[Temp02],"Temp02");
+std::strcpy (namearray[Temp03],"Temp03");
+std::strcpy (namearray[Temp04],"Temp04");
+std::strcpy (namearray[Temp05],"Temp05");
+std::strcpy (namearray[Sound06],"Sound06");
+std::strcpy (namearray[PIR07],"PIR07");
+initialised = true;
+
+
+
+}
+
+
+
+/*******************************
+ * Loop
+*******************************/
+
+/*******************************
+ * Utility Functions
+*******************************/
+
+/*******************************
+ * Finite State Machine
+*******************************/
 
 
 

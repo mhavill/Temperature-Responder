@@ -57,7 +57,7 @@ void sendProwl()
   EspProwl.setApiKey(ESPPROWL_KEY);
   EspProwl.setApplicationName(ESPPROWL_APP_NAME);
   notification = device;
-  message = "Initial restart";
+  message= "Initial restart";
   priority = 0;
   // EspProwl.push(notification, message, priority);
   prowlsent = true;

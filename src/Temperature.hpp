@@ -10,9 +10,9 @@
  *******************************/
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#ifndef MESH
-#include <Mesh.hpp>
-#define MESH
+#ifndef VANMESH
+#include <vanMesh.hpp>
+#define VANMESH
 #endif
 /*******************************
  * Protptypes
@@ -100,9 +100,9 @@ bool temperature(void *)
 {
   // call sensors.requestTemperatures() to issue a global temperature
   // request to all devices on the bus
-  Serial.print("   Requesting temperatures...");
+  // Serial.print("   Requesting temperatures...");
   sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.print("DONE\t");
+  // Serial.print("DONE\t");
 
   // It responds almost immediately. Let's print out the data
   printTemperature(insideThermometer); // Use a simple function to print out the data
@@ -114,19 +114,20 @@ bool temperature(void *)
 // function to print the temperature for a device
 void printTemperature(DeviceAddress deviceAddress)
 {
-  tempC = sensors.getTempC(deviceAddress);
+  float tempC = sensors.getTempC(deviceAddress);
   if (tempC == DEVICE_DISCONNECTED_C)
   {
     Serial.println("Error: Could not read temperature data");
     return;
   }
-  Serial.print(device);
-  Serial.print("\tC: ");
-  Serial.print(tempC);
-  Serial.print("\n ");
+  //DEBUG 
+  // Serial.print(device);
+  // Serial.print("\tC: ");
+  // Serial.print(tempC);
+  // Serial.print("\n ");
   // DEBUG
-  //  nodearray[4].temp = tempC;
-  //  sendMessage();
+   nodearray[node].data1 = tempC;
+   sendMessage();
 }
 
 /*******************************
