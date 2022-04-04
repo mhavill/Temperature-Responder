@@ -167,7 +167,7 @@ void sendMessage()
     msg += nodearray[node].date;
     msg += " Time:";
     msg += nodearray[node].time;
-    msg += "\n";
+    // msg += "\n";
     mesh.sendBroadcast(msg);
 
     printNodeArray();
@@ -182,7 +182,7 @@ void receivedCallback(uint32_t from, String &msg)
 #ifdef IOTCLOUD
   Serial.printf("bridge: Received from %u msg=%s\n", from, msg.c_str());
 #else
-  Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
+  // Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
 #endif
   if (initialised)
     storeInNodeArray(msg);
