@@ -101,7 +101,7 @@ void vanMeshSetup()
   // mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   // mesh.setHostname(HOSTNAME);
   // mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT);
+  mesh.init(MESH_PREFIX, MESH_PASSWORD);
   // mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT);
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);

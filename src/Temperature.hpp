@@ -127,6 +127,9 @@ void printTemperature(DeviceAddress deviceAddress)
   // Serial.print("\n ");
   // DEBUG
    nodearray[node].data1 = tempC;
+   nodearray[node].data2 = 0;
+   nodearray[node].data3 = 0;
+   nodearray[node].status = 1;
    sendMessage();
 }
 
