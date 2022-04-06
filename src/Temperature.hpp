@@ -130,6 +130,7 @@ void printTemperature(DeviceAddress deviceAddress)
    nodearray[node].data2 = 0;
    nodearray[node].data3 = 0;
    nodearray[node].status = 1;
+   nodearray[node].lastcall = 0;
    sendMessage();
 }
 

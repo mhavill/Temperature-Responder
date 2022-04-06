@@ -116,7 +116,8 @@ void setup()
   delay(5000);
 
   timer_AIOTC.every(10000, AIOTCupdate); // Cloud update
-  timer_temp.every(2000, temperature);   // temperature function
+  timer_temp.every(5000, temperature);   // temperature function
+  timer_bump.every(10000,bumpLastCall);   // look for dead nodes
 
   // mesh
   vanMeshSetup();
@@ -127,13 +128,14 @@ void setup()
  *******************************/
 void loop()
 {
-
+  delay(1);
   vanMeshLoop();
   timer_AIOTC.tick(); // tick the timer - looks after temperature, mesh and AIOTC
 #ifdef FINAL
   timer_mesh.tick();
 #endif // FINAL
   timer_temp.tick();
+  timer_bump.tick();
 
   // if (!prowlsent)
   //   sendProwl();
