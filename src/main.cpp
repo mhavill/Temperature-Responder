@@ -50,8 +50,6 @@
 #include <time.h>
 #include <sys/time.h>
 
-
-
 /*******************************
  * Protptypes
  *******************************/
@@ -60,6 +58,9 @@ void loop();
 /*******************************
  * Definitions
  *******************************/
+#define BAUD_RATE 115200
+#define SERIAL_SIZE_RX 512
+
 auto timer_temp = timer_create_default();  // create a timer with default settings
 auto timer_AIOTC = timer_create_default(); // create a timer with default settings
 
@@ -89,7 +90,8 @@ extern "C"
 void setup()
 {
   delay(5000); // time to start monitor
-  Serial.begin(115200);
+  Serial.begin(BAUD_RATE);
+  Serial.setRxBufferSize(SERIAL_SIZE_RX);
 
   Serial.println("\nHome IOT Control Mesh");
   Serial.print("compiled: ");
@@ -117,11 +119,11 @@ void setup()
 
   timer_AIOTC.every(10000, AIOTCupdate); // Cloud update
   timer_temp.every(5000, temperature);   // temperature function
-  timer_bump.every(10000,bumpLastCall);   // look for dead nodes
+  timer_bump.every(10000, bumpLastCall); // look for dead nodes
 
   // mesh
   vanMeshSetup();
-  }
+}
 
 /*******************************
  * Loop

@@ -1,12 +1,12 @@
 /*******************************
  * Header
- * Name:
- * Purpose:
- * Created Date:
+ * Name: vanMesh.h
+ * Purpose: Mesh code for Vanguard project
+ * Created Date: 06/04/2022
  *******************************/
-// TODO remove reference to temperature DONE [x]
+// TODO remove reference to temperature DONE
 // TODO remove non mesh elements
-// TODO make into called from main
+// TODO make into called from main  DONE
 // TODO make bridge selectable
 
 /*******************************
@@ -23,7 +23,7 @@
 #endif
 
 #ifndef THINGPROPERTIES
-#include <thingProperties.h>
+#include <thingProperties.hpp>
 #define THINGPROPERTIES
 #endif // THINGPROPERTIES
 
@@ -39,9 +39,7 @@
 #include <ctime>
 #include <time.h>
 #include <sys/time.h>
-#include <coredecls.h>
 
-using namespace std;
 /*******************************
  * Protptypes
  *******************************/
@@ -50,7 +48,7 @@ void newConnectionCallback(uint32_t nodeId);
 void changedConnectionCallback();
 void nodeTimeAdjustedCallback(int32_t offset);
 
-void storeInNodeArray(String msg);
+void storeInNodeArray(uint32_t from, String msg);
 void printNodeArray();
 bool bumpLastCall(void *);
 // bool AIOTCupdate(void *);
@@ -61,6 +59,10 @@ void systemDate();
 void setSysTime();
 std::string getToken(std::string str_msg, std::string from, std::string to);
 // void sendProwl();
+#ifndef GPS
+static void printStr(const char *str, int len);
+#endif // GPS
+
 /*******************************
  * Definitions
  *******************************/
@@ -68,9 +70,9 @@ Scheduler userScheduler; // to control your personal task
 painlessMesh mesh;
 // WiFiClient wifiClient;
 #define STATION_PORT 5555
-uint8_t station_ip[4] = {0, 0, 0, 0}; // IP of the server
-IPAddress getlocalIP();
-IPAddress myIP(0, 0, 0, 0);
+// uint8_t station_ip[4] = {0, 0, 0, 0}; // IP of the server
+// IPAddress getlocalIP();
+// IPAddress myIP(0, 0, 0, 0);
 Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
 extern bool initialised;
 bool messageStored = false;
@@ -95,18 +97,22 @@ void vanMeshSetup()
   setDebugMessageLevel(4);
   ArduinoCloud.printDebugInfo();
 #endif
-  //   mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
+  mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);
-  mesh.setDebugMsgTypes(ERROR | CONNECTION);
+  // mesh.setDebugMsgTypes(ERROR | CONNECTION);
+
   // mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   // mesh.setHostname(HOSTNAME);
   // mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
-  mesh.init(MESH_PREFIX, MESH_PASSWORD);
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler);
   // mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT);
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
+
+  userScheduler.addTask(taskSendMessage);
+  taskSendMessage.enable();
 
 #ifdef IOTCLOUD
   // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
@@ -123,9 +129,6 @@ void vanMeshSetup()
   Serial.print("\tMesh APIP: ");
   Serial.println(mesh.getAPIP());
   initialiseMessage();
-
-  userScheduler.addTask(taskSendMessage);
-  taskSendMessage.enable();
 }
 
 /*******************************
@@ -138,11 +141,11 @@ void vanMeshLoop()
 
   //   if (!prowlsent) sendProwl();
 
-  if (myIP != getlocalIP())
-  {
-    myIP = getlocalIP();
-    Serial.println("My IP is " + myIP.toString());
-  }
+  // if (myIP != getlocalIP())
+  // {
+  //   myIP = getlocalIP();
+  //   Serial.println("My IP is " + myIP.toString());
+  // }
 }
 /*******************************
  * Utility Functions
@@ -167,7 +170,9 @@ void sendMessage()
     msg += nodearray[node].date;
     msg += " Time:";
     msg += nodearray[node].time;
-    // msg += "\n";
+    // msg += " ID:";
+    // msg += nodearray[node].from;
+    
     mesh.sendBroadcast(msg);
 
     printNodeArray();
@@ -185,7 +190,8 @@ void receivedCallback(uint32_t from, String &msg)
   // Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
 #endif
   if (initialised)
-    storeInNodeArray(msg);
+  // Serial.println(from);
+    storeInNodeArray(from, msg);
 }
 
 void newConnectionCallback(uint32_t nodeId)
@@ -203,10 +209,10 @@ void nodeTimeAdjustedCallback(int32_t offset)
   Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
 }
 
-IPAddress getlocalIP()
-{
-  return IPAddress(mesh.getStationIP());
-}
+// IPAddress getlocalIP()
+// {
+//   return IPAddress(mesh.getStationIP());
+// }
 
 // void sendProwl()
 // {
@@ -226,11 +232,16 @@ IPAddress getlocalIP()
 
 // }
 
-void storeInNodeArray(String msg)
+void storeInNodeArray(uint32_t from, String msg)
 {
   char *end;
-  std::string str_msg = "Buffer for text messages";
-  str_msg = msg.c_str();
+  //DEBUG
+  // Serial.print("Recd in StoreInNodeArray: ");
+  // Serial.println(from);
+
+  msg += " ID:";
+  msg += from;
+  std::string str_msg = msg.c_str();
 
   // const char *tempC = tempToken.c_str();
 
@@ -244,12 +255,13 @@ void storeInNodeArray(String msg)
   std::string sDel = "S:";    // Delimiting string
   std::string dDel = "Date:"; // Delimiting string
   std::string tDel = "Time:"; // Delimiting string
+  // std::string iDel = "ID:";   // Delimiting string
 
   std::string nodeToken = str_msg.substr(str_msg.find(nDel) + 2, str_msg.find(d1Del) - 3);
   int zeroPoint = nodeToken.find("0"); // expects to find int begining with a 0 e.g. dev099
   std::string subNodeToken = nodeToken.substr(zeroPoint);
 
-  int node = atoi(subNodeToken.c_str()) - 1; // Adjusted for array
+  int node = atoi(subNodeToken.c_str()) - 1; // Adjusted for array (this is a local variable of node - NOT the const!!)
   nodearray[node].nodeid = node + 1;
   // TODO check the lengths of the token are correct DONE
   std::string token;
@@ -265,18 +277,21 @@ void storeInNodeArray(String msg)
   token = getToken(str_msg, sDel, dDel);
   nodearray[node].status = atoi(token.c_str()); // store status as int
   token = getToken(str_msg, dDel, tDel);
-  strcpy(nodearray[node].date, token.c_str());    // store the node date as string
-  token = str_msg.substr(str_msg.find(tDel) + 5); // extract to end
-  strcpy(nodearray[node].time, token.c_str());    // store the node date as string
+  strcpy(nodearray[node].date, token.c_str()); // store the node date as string
+  // token = getToken(str_msg, tDel, iDel);
+  token = str_msg.substr(str_msg.find(tDel) + 5);
+  strcpy(nodearray[node].time, token.c_str());     // store the node time as string
+
+    nodearray[node].from = from; // store the nodeid 
   messageStored = true;
 }
 
 std::string getToken(std::string str_msg, std::string from, std::string to)
 {
   int pos1 = str_msg.find(from);
-  pos1 += size(from);
+  pos1 += from.length();
   int pos2 = str_msg.find(to);
-  std::string token = str_msg.substr(pos1, pos2 - pos1);
+  std::string token = str_msg.substr(pos1, pos2 - pos1 - 1);
   // Debug
   // Serial.print("Token: ");
   // Serial.println(token.c_str());
@@ -294,6 +309,7 @@ void printNodeArray()
   Serial.print("\tDate: ");
   Serial.print("\t\tTime: ");
   Serial.print("\t\tName: ");
+  Serial.print("\t\tID: ");
   Serial.print("\n");
   for (int node = 0; node <= NODE_COUNT - 1; ++node)
   {
@@ -309,12 +325,13 @@ void printNodeArray()
     Serial.print("\t\t");
     Serial.print(nodearray[node].status);
     Serial.print("\t\t");
-    printStr(nodearray[node].date, 12);
+    printStr(nodearray[node].date, 9);
     Serial.print("\t");
-    printStr(nodearray[node].time, 12);
+    printStr(nodearray[node].time, 9);
     Serial.print("\t");
-    printStr(nodearray[node].name, 12);
-
+    printStr(nodearray[node].name, 8);
+    Serial.print("\t");
+    Serial.print(nodearray[node].from);
     Serial.print("\n");
   }
   Serial.print("\n\n");
@@ -322,27 +339,24 @@ void printNodeArray()
 }
 bool bumpLastCall(void *)
 {
+  int bumpcount = 0;
   for (int i = 0; i <= NODE_COUNT - 1; ++i)
   {
     nodearray[i].lastcall++;
   }
-  //   count = ++broadcastCount;
-  //   temp01 = nodearray[0].temp;
-  //   // Serial.print(temp01);
-  //   temp02 = nodearray[1].temp;
-  //   // Serial.print("\t");
-  //   // Serial.print(temp02);
-  //   temp03 = nodearray[2].temp;
-  //   // Serial.print("\t");
-  //   // Serial.print(temp03);
-  //   temp04 = nodearray[3].temp;
-  //   // Serial.print("\t");
-  //   // Serial.print(temp04);
-  //   temp05 = nodearray[4].temp;
-  // Serial.print("\t");
-  // Serial.print(temp05);
-  // Serial.print("\n");
-
+  for (int i = 0; i <= NODE_COUNT - 1; ++i)
+  {
+    nodearray[i].lastcall++;
+    if (nodearray[i].status >= 0)
+    {
+      bumpcount += nodearray[i].lastcall;
+    }
+    if (bumpcount >= MAXLASTCALL) // looks like we are not listening
+    {
+       system_restart(); //ESP8266
+      // esp_restart(); // ESP32
+    }
+  }
   return true;
 }
 
@@ -354,37 +368,29 @@ void initialiseMessage()
 
     String msg = " N:";
     msg += namearray[i];
-    msg += " D1:1.23 D2:5.67 D3:8.90 L:0 S:-1 Date:01/12/2000  Time:23:59:50";
-    storeInNodeArray(msg);
+    msg += " D1:1.23 D2:5.67 D3:8.90 L:0 S:-1 Date:01/12/2000  Time:23:59:50 ID:0000000";
+    storeInNodeArray(0, msg);
   }
-}
-
-static void printStr(const char *str, int len)
-{
-  int slen = strlen(str);
-  for (int i = 0; i < len; ++i)
-    Serial.print(i < slen ? str[i] : ' ');
-  // smartDelay(0);
 }
 
 void systemDate()
 {
 
-  // current date/time based on current system
-  time_t now = time(0);
+  // // current date/time based on current system
+  // time_t now = time(0);
 
-  cout << "Number of sec since January 1,1970 is:: " << now << endl;
+  // cout << "Number of sec since January 1,1970 is:: " << now << endl;
 
-  tm *gmt = gmtime(&now);
+  // tm *gmt = gmtime(&now);
 
-  // print various components of tm structure.
-  cout << "Year:" << 1900 + gmt->tm_year << endl;
-  cout << "Month: " << 1 + gmt->tm_mon << endl;
-  cout << "Day: " << gmt->tm_mday << endl;
-  cout << "Time: " << 5 + gmt->tm_hour << ":";
-  cout << 30 + gmt->tm_min << ":";
-  cout << gmt->tm_sec << endl;
-  setSysTime();
+  // // print various components of tm structure.
+  // cout << "Year:" << 1900 + gmt->tm_year << endl;
+  // cout << "Month: " << 1 + gmt->tm_mon << endl;
+  // cout << "Day: " << gmt->tm_mday << endl;
+  // cout << "Time: " << 5 + gmt->tm_hour << ":";
+  // cout << 30 + gmt->tm_min << ":";
+  // cout << gmt->tm_sec << endl;
+  // setSysTime();
 }
 
 void setSysTime()
@@ -439,6 +445,14 @@ void setSysTime()
   }
 }
 
+#ifndef GPS
+static void printStr(const char *str, int len)
+{
+  int slen = strlen(str);
+  for (int i = 0; i < len; ++i)
+    Serial.print(i < slen ? str[i] : ' ');
+}
+#endif // GPS
 /*******************************
  * Finite State Machine
  *******************************/

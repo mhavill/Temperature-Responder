@@ -67,15 +67,17 @@ const int MAXLASTCALL = 600;
 
 struct nodedata
 {
-    int nodeid;
-    char name[12];
-    double data1;    //e.g. Latitude, temperature
-    double data2;    //e.g. Longitude
-    double data3;    //e.g. Speed
-    int lastcall;
-    int status;
-    char date[14];
-    char time[14];
+  byte nodeid;
+  char name[12];
+  double data1; // e.g. Latitude, temperature
+  double data2; // e.g. Longitude
+  double data3; // e.g. Speed
+  byte lastcall;
+  int8_t status;
+  char date[12];
+  char time[12];
+  uint32_t from; // nodeid from painlessMesh for direct comms
+  char space[10];
     
 };
 
@@ -85,7 +87,7 @@ nodedata nodearray[NODE_COUNT];
 enum Nodes {GPS01, Temp02, Temp03, Temp04, Temp05, Sound06, PIR07};
 
 char namearray[NODE_COUNT][10] = {"GPS01", "Temp02", "Temp03", "Temp04", "Temp05", "Sound06","PIR07"};
-const int node = Temp05;
+const int node = Temp03;
 
 bool initialised = false;
 
