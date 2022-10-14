@@ -5,3 +5,4 @@
 .vscode/ipch
 .env.development
 src/secrets.h
+lib/EspProwl
