@@ -104,7 +104,7 @@ void vanMeshSetup()
   // mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   // mesh.setHostname(HOSTNAME);
   // mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler);
+  mesh.init(MESH_PREFIX, MESH_PASSWORD,MESH_PORT, WIFI_AP_STA, 5, 0, 10);
   // mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT);
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
@@ -263,7 +263,7 @@ void storeInNodeArray(uint32_t from, String msg)
 
   int node = atoi(subNodeToken.c_str()) - 1; // Adjusted for array (this is a local variable of node - NOT the const!!)
   nodearray[node].nodeid = node + 1;
-  // TODO check the lengths of the token are correct DONE
+  // DONE check the lengths of the token are correct 
   std::string token;
   token = getToken(str_msg, nDel, d1Del);
   strcpy(nodearray[node].name, token.c_str()); // store the node name as string
@@ -325,7 +325,7 @@ void printNodeArray()
     Serial.print("\t\t");
     Serial.print(nodearray[node].status);
     Serial.print("\t\t");
-    printStr(nodearray[node].date, 9);
+    printStr(nodearray[node].date, 12);
     Serial.print("\t");
     printStr(nodearray[node].time, 9);
     Serial.print("\t");

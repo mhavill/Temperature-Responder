@@ -87,7 +87,7 @@ nodedata nodearray[NODE_COUNT];
 enum Nodes {GPS01, Temp02, Temp03, Temp04, Temp05, Sound06, PIR07};
 
 char namearray[NODE_COUNT][10] = {"GPS01", "Temp02", "Temp03", "Temp04", "Temp05", "Sound06","PIR07"};
-const int node = Temp03;
+const int node = Temp05;
 
 bool initialised = false;
 
