@@ -92,7 +92,7 @@ char namearray[NODE_COUNT][10] = {"GPS01", "Bridge02", "Relay03", "Relay04", "Te
 const int node = Temp05;
 
 bool initialised = false;
-int node_Count;
+
 
 /*******************************
  * Setup

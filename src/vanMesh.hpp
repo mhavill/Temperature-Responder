@@ -276,7 +276,9 @@ void changedConnectionCallback()
 
   nodes = mesh.getNodeList();
   Serial.printf("Num nodes: %d\n", nodes.size());
+#ifdef IOTCLOUD
   node_Count = nodes.size() + 1; // Root included in count
+#endif                           // IOTCLOUD
   Serial.printf("Connection list:");
   SimpleList<uint32_t>::iterator node = nodes.begin();
   while (node != nodes.end())
