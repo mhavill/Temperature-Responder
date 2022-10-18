@@ -6,3 +6,5 @@
 .env.development
 src/secrets.h
 lib/EspProwl
+
+src\vanMesh-old.hpp

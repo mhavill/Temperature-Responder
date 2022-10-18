@@ -31,7 +31,6 @@
 #include <Temperature.hpp>
 #endif
 
-#include <AIOTC.hpp>
 
 #ifndef VANMESH
 #include <vanMesh.hpp>
@@ -62,15 +61,16 @@ void loop();
 #define SERIAL_SIZE_RX 512
 
 auto timer_temp = timer_create_default();  // create a timer with default settings
-auto timer_AIOTC = timer_create_default(); // create a timer with default settings
+
 
 auto timer_bump = timer_create_default(); // create a timer with defalt settings
 auto timer_send = timer_create_default(); // create a timer with default settings
+auto timer_mesh = timer_create_default(); // create a timer with default settings
+auto timer_print = timer_create_default(); // create a timer with default settings
 
 const int led = 2;
 
-WiFiClient wifiClient;
-bool AIOTCconnected = false;
+
 
 #undef max
 #undef min
@@ -109,17 +109,18 @@ void setup()
   temperatureSetup();
   // delay(1000);
 
-  // AIOTC
-  aiotcSetup();
+
 
   // Push Notifications
   // prowlSetup();
 
   delay(5000);
 
-  timer_AIOTC.every(10000, AIOTCupdate); // Cloud update
+ 
   timer_temp.every(5000, temperature);   // temperature function
   timer_bump.every(10000, bumpLastCall); // look for dead nodes
+  timer_mesh.every(100, meshloop);
+  timer_print.every(10000, printNodeArray); // look for dead nodes
 
   // mesh
   vanMeshSetup();
@@ -130,14 +131,16 @@ void setup()
  *******************************/
 void loop()
 {
-  delay(1);
-  vanMeshLoop();
-  timer_AIOTC.tick(); // tick the timer - looks after temperature, mesh and AIOTC
+  // delay(1);
+  timer_mesh.tick();
+
+
 #ifdef FINAL
   timer_mesh.tick();
 #endif // FINAL
   timer_temp.tick();
   timer_bump.tick();
+  timer_print.tick();
 
   // if (!prowlsent)
   //   sendProwl();

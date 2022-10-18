@@ -4,16 +4,20 @@
  * Purpose: Mesh code for Vanguard project
  * Created Date: 06/04/2022
  *******************************/
-// TODO remove reference to temperature DONE
+// DONE remove reference to temperature
 // TODO remove non mesh elements
-// TODO make into called from main  DONE
+// DONE make into called from main
 // TODO make bridge selectable
+// DONE make this work with Vanessa WiFi - Changed channel to 5
 
 /*******************************
  * Includes
  *******************************/
-#include <Arduino.h>
+// #include <Arduino.h>
+#ifndef ATIMER
 #include <arduino-timer.h>
+#define ATIMER
+#endif // ATIMER
 
 #ifdef ESP32
 // #include <WiFiClientSecure.h>
@@ -23,7 +27,7 @@
 #endif
 
 #ifndef THINGPROPERTIES
-#include <thingProperties.hpp>
+#include "thingProperties.hpp"
 #define THINGPROPERTIES
 #endif // THINGPROPERTIES
 
@@ -34,6 +38,11 @@
 
 #include <painlessMesh.h>
 
+#ifdef IOTCLOUD
+#include <PubSubClient.h>
+#include "espprowl.hpp"
+#endif // IOTCLOUD
+
 #include <iostream>
 #include <string>
 #include <ctime>
@@ -43,20 +52,28 @@
 /*******************************
  * Protptypes
  *******************************/
-void receivedCallback(uint32_t from, String &msg);
+#ifdef IOTCLOUD
+void mqttCallback(char *topic, uint8_t *payload, unsigned int length);
+bool mqttloop(void *);
+#endif // IOTCLOUD
+void receivedCallback(const uint32_t &from, const String &msg);
+void newConnectionCallback(uint32_t nodeId);
 void newConnectionCallback(uint32_t nodeId);
 void changedConnectionCallback();
 void nodeTimeAdjustedCallback(int32_t offset);
-
+void reconnect();
+IPAddress getlocalIP();
+String scanprocessor(const String &var);
+bool printNodeArray(void *);
+bool meshloop(void *);
 void storeInNodeArray(uint32_t from, String msg);
-void printNodeArray();
 bool bumpLastCall(void *);
-// bool AIOTCupdate(void *);
 void sendMessage();
 void initialiseMessage();
 static void printStr(const char *str, int len);
 void systemDate();
 void setSysTime();
+void resetLastcall(int);
 std::string getToken(std::string str_msg, std::string from, std::string to);
 // void sendProwl();
 #ifndef GPS
@@ -66,67 +83,85 @@ static void printStr(const char *str, int len);
 /*******************************
  * Definitions
  *******************************/
+// TODO check if required
 Scheduler userScheduler; // to control your personal task
 painlessMesh mesh;
-// WiFiClient wifiClient;
-#define STATION_PORT 5555
+WiFiClient wifiClient;
+
 // uint8_t station_ip[4] = {0, 0, 0, 0}; // IP of the server
-// IPAddress getlocalIP();
-// IPAddress myIP(0, 0, 0, 0);
-Task taskSendMessage(TASK_SECOND * 1, TASK_FOREVER, &sendMessage);
+IPAddress getlocalIP();
+IPAddress myIP(0, 0, 0, 0);
+IPAddress myAPIP(0, 0, 0, 0);
+
+#ifdef IOTCLOUD
+// hivemq pubblic broker address and port
+char mqttBroker[] = "broker.hivemq.com";
+#define MQTTPORT 1883
+#define PUBPLISHSUFFIX "VanpainlessMesh/from/"
+#define SUBSCRIBESUFFIX "VanpainlessMesh/to/"
+#define PUBPLISHFROMGATEWAYSUFFIX PUBPLISHSUFFIX "gateway"
+#define CHECKCONNDELTA 120 // check interval ( seconds ) for mqtt connection
+PubSubClient mqttClient;
+#endif // IOTCLOUD
+
+bool calc_delay = false;
+SimpleList<uint32_t> nodes;
+uint32_t nsent = 0;
+char buff[512];
+uint32_t nexttime = 0;
+uint8_t initialized = 0;
+
+// TODO check sendmessage function  & update timer - changed to 5 secs from 1
+Task taskSendMessage(TASK_SECOND * 5, TASK_FOREVER, &sendMessage);
 extern bool initialised;
 bool messageStored = false;
 bool timeset = false;
 
-// uint32_t freeMem;
-// bool prowlsent;
+bool verbose = false;
+
 /*******************************
  * Setup
  *******************************/
 void vanMeshSetup()
 {
-
-#ifdef IOTCLOUD
-
-  // Defined in thingProperties.h
-  initProperties();
-
-  // Connect to Arduino IoT Cloud
-  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
-
-  setDebugMessageLevel(4);
-  ArduinoCloud.printDebugInfo();
-#endif
-  mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
+  // mesh.setDebugMsgTypes(ERROR | STARTUP); // set before init() so that you can see startup messages
   // mesh.setDebugMsgTypes(ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE);
-  // mesh.setDebugMsgTypes(ERROR | CONNECTION);
+  // mesh.setDebugMsgTypes(ERROR | STARTUP | CONNECTION);
+  mesh.setDebugMsgTypes(ERROR | STARTUP);
 
-  // mesh.stationManual(STATION_SSID, STATION_PASSWORD);
-  // mesh.setHostname(HOSTNAME);
-  // mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 6);
-  mesh.init(MESH_PREFIX, MESH_PASSWORD,MESH_PORT, WIFI_AP_STA, 5, 0, 10);
-  // mesh.stationManual(STATION_SSID, STATION_PASSWORD, STATION_PORT);
+  // Channel set to 10. Make sure to use the same channel for your mesh and for you other
+  // network (STATION_SSID)
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, MESH_PORT, WIFI_AP_STA, 5); // Channel changed to 5 for Vanessa WiFI
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
-
-  userScheduler.addTask(taskSendMessage);
-  taskSendMessage.enable();
-
 #ifdef IOTCLOUD
+  mesh.stationManual(STATION_SSID, STATION_PASSWORD);
+  mesh.setHostname(HOSTNAME);
+
   // Bridge node, should (in most cases) be a root node. See [the wiki](https://gitlab.com/painlessMesh/painlessMesh/wikis/Possible-challenges-in-mesh-formation) for some background
   mesh.setRoot(true);
+  // This node and all other nodes should ideally know the mesh contains a root, so call this on all nodes
+  mesh.setContainsRoot(true);
+  mesh.getStationIP();
+  mesh.getAPIP();
 
+  // TODO check following scheduler task?
+  // userScheduler.addTask(taskSendMessage);
+  // taskSendMessage.enable();
+  mqttClient.setServer(mqttBroker, MQTTPORT);
+  mqttClient.setCallback(mqttCallback);
+  mqttClient.setClient(wifiClient);
+  Serial.print("getStationIP: ");
+  Serial.println(mesh.getStationIP());
 #else
   mesh.setRoot(false);
 #endif
   // This node and all other nodes should ideally know the mesh contains a root, so call this on all nodes
   mesh.setContainsRoot(true);
-  //   prowlsent = false;
-  Serial.print("getStationIP: ");
-  Serial.print(mesh.getStationIP());
-  Serial.print("\tMesh APIP: ");
+
+  Serial.print("Mesh APIP: ");
   Serial.println(mesh.getAPIP());
   initialiseMessage();
 }
@@ -134,22 +169,187 @@ void vanMeshSetup()
 /*******************************
  * Loop
  *******************************/
-void vanMeshLoop()
+bool meshloop(void *)
 {
-
   mesh.update();
-
-  //   if (!prowlsent) sendProwl();
-
-  // if (myIP != getlocalIP())
-  // {
-  //   myIP = getlocalIP();
-  //   Serial.println("My IP is " + myIP.toString());
-  // }
+  return true;
 }
+
+bool mqttloop(void *)
+{
+#ifdef IOTCLOUD
+  mqttClient.loop();
+#endif // IOTCLOUD
+  return true;
+}
+
 /*******************************
  * Utility Functions
  *******************************/
+
+// messages received from the mqtt broker
+void mqttCallback(char *topic, uint8_t *payload, unsigned int length)
+{
+#ifdef IOTCLOUD
+  char *cleanPayload = (char *)malloc(length + 1);
+  payload[length] = '\0';
+  memcpy(cleanPayload, payload, length + 1);
+  std::string msg = std::string(cleanPayload);
+  free(cleanPayload);
+
+  Serial.printf("mc t:%s  p:%s\n", topic, payload);
+
+  std::string targetStr = std::string(topic).substr(strlen(SUBSCRIBESUFFIX));
+
+  if (targetStr.compare("gateway") >= 0)
+  {
+    if (msg.compare("getNodes") >= 0)
+    {
+      // Serial.println("Getting Nodes");
+      auto nodes = mesh.getNodeList(true);
+      std::string str;
+      for (auto &&id : nodes)
+        str = str + std::to_string(id) + " ";
+      mqttClient.publish(PUBPLISHFROMGATEWAYSUFFIX, str.c_str());
+      // Serial.println(str.c_str());
+    }
+    if (msg.compare("getrt") >= 0)
+    {
+      // Serial.println("Getting Route");
+      mqttClient.publish(PUBPLISHFROMGATEWAYSUFFIX, mesh.subConnectionJson(false).c_str());
+    }
+    if (msg.compare("asnodetree") >= 0)
+    {
+      // mqttClient.publish( PUBPLISHFROMGATEWAYSUFFIX, mesh.asNodeTree().c_str() );
+    }
+  }
+  else if (targetStr.compare("broadcast") >= 0)
+  {
+    mesh.sendBroadcast(msg.c_str());
+  }
+  else
+  {
+    uint32_t target = strtoul(targetStr.c_str(), NULL, 10);
+    if (mesh.isConnected(target))
+    {
+      mesh.sendSingle(target, msg.c_str());
+    }
+    else
+    {
+      mqttClient.publish(PUBPLISHFROMGATEWAYSUFFIX, "Client not connected!");
+    }
+  }
+#endif // IOTCLOUD
+}
+
+// messages received from painless mesh network
+void receivedCallback(const uint32_t &from, const String &msg)
+{
+
+  if (verbose)
+  {
+    Serial.printf("bridge: Received from %u msg=%s\n", from, msg.c_str());
+#ifdef IOTCLOUD
+    String topic = PUBPLISHSUFFIX + String(from);
+    mqttClient.publish(topic.c_str(), msg.c_str());
+#endif // IOTCLOUD
+  }
+  if (initialised)
+  {
+    storeInNodeArray(from, msg);
+  }
+  else
+  {
+    (Serial.println("Not Initialised to store messages"));
+  }
+}
+
+void newConnectionCallback(uint32_t nodeId)
+{
+  Serial.printf("--> Start: New Connection, nodeId = %u\n", nodeId);
+  Serial.printf("--> Start: New Connection, %s\n", mesh.subConnectionJson(true).c_str());
+}
+
+void changedConnectionCallback()
+{
+  Serial.printf("Changed connections\n");
+
+  nodes = mesh.getNodeList();
+  Serial.printf("Num nodes: %d\n", nodes.size());
+  node_Count = nodes.size() + 1; // Root included in count
+  Serial.printf("Connection list:");
+  SimpleList<uint32_t>::iterator node = nodes.begin();
+  while (node != nodes.end())
+  {
+    Serial.printf(" %u", *node);
+    node++;
+  }
+  Serial.println();
+  calc_delay = true;
+}
+
+void nodeTimeAdjustedCallback(int32_t offset)
+{
+  if (verbose)
+    Serial.printf("Adjusted time %u Offset = %d\n", mesh.getNodeTime(), offset);
+}
+
+void onNodeDelayReceived(uint32_t nodeId, int32_t delay)
+{
+  Serial.printf("Delay from node:%u delay = %d\n", nodeId, delay);
+}
+
+void reconnect()
+{
+#ifdef IOTCLOUD
+  // byte mac[6];
+  char MAC[9];
+  int i;
+
+  // unique string
+  // WiFi.macAddress(mac);
+  // sprintf(MAC,"%02X",mac[2],mac[3],mac[4],mac[5]);
+  sprintf(MAC, "%08X", (uint32_t)ESP.getEfuseMac()); // generate unique addresss.
+  // Loop until we're reconnected
+  while (!mqttClient.connected())
+  {
+    Serial.println("Attempting MQTT connection...");
+    // Attemp to connect
+    if (mqttClient.connect(/*MQTT_CLIENT_NAME*/ MAC))
+    {
+      Serial.println("MQTT Connected");
+      mqttClient.publish(PUBPLISHFROMGATEWAYSUFFIX, "Ready!");
+      mqttClient.subscribe(SUBSCRIBESUFFIX "#");
+      prowlSetup();
+      ProwlInitial();
+      aiotcSetup();
+    }
+    else
+    {
+      Serial.print("Failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 2 seconds");
+      // Wait 2 seconds before retrying
+      delay(2000);
+      mesh.update();
+      mqttClient.loop();
+    }
+  }
+#endif // IOTCLOUD
+}
+
+IPAddress getlocalIP()
+{
+  return IPAddress(mesh.getStationIP());
+}
+
+String scanprocessor(const String &var)
+{
+  if (var == ("SCAN"))
+    return mesh.subConnectionJson(false);
+  return String();
+}
+
 void sendMessage()
 {
   if (messageStored)
@@ -172,79 +372,31 @@ void sendMessage()
     msg += nodearray[node].time;
     // msg += " ID:";
     // msg += nodearray[node].from;
-    
+
     mesh.sendBroadcast(msg);
 
-    printNodeArray();
-    taskSendMessage.setInterval(random(TASK_SECOND * 1, TASK_SECOND * 5));
+    // printNodeArray();
+    // TODO change to timer
+    if (nodearray[Bridge02].status >= 0 && nodearray[Bridge02].lastcall <= 3)  // an active connection with Bridge
+      taskSendMessage.setInterval(random(TASK_SECOND * 10, TASK_SECOND * 15)); // slowed update
+    else
+      taskSendMessage.setInterval(random(TASK_SECOND * 5, TASK_SECOND * 5)); // rapid update
   }
 }
-
-// Needed for painless library
-void receivedCallback(uint32_t from, String &msg)
-{
-  // Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
-#ifdef IOTCLOUD
-  Serial.printf("bridge: Received from %u msg=%s\n", from, msg.c_str());
-#else
-  // Serial.printf("startHere: Received from %u msg=%s\n", from, msg.c_str());
-#endif
-  if (initialised)
-  // Serial.println(from);
-    storeInNodeArray(from, msg);
-}
-
-void newConnectionCallback(uint32_t nodeId)
-{
-  Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
-}
-
-void changedConnectionCallback()
-{
-  Serial.printf("Changed connections\n");
-}
-
-void nodeTimeAdjustedCallback(int32_t offset)
-{
-  Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(), offset);
-}
-
-// IPAddress getlocalIP()
-// {
-//   return IPAddress(mesh.getStationIP());
-// }
-
-// void sendProwl()
-// {
-//   // Wait for WiFi connection
-//   if (WiFi.status() == WL_CONNECTED)
-//   {
-
-//   EspProwl.begin();
-//   EspProwl.setApiKey(espProwlKey);
-//   EspProwl.setApplicationName(ESPPROWL_APP_NAME);
-//   notification = "Temp02";
-//   message = "Initial restart";
-//   priority = 0;
-//   EspProwl.push(notification, message, priority);
-//   prowlsent = true;
-//   }
-
-// }
 
 void storeInNodeArray(uint32_t from, String msg)
 {
   char *end;
-  //DEBUG
-  // Serial.print("Recd in StoreInNodeArray: ");
-  // Serial.println(from);
+  // DEBUG
+  //  Serial.print("Recd in StoreInNodeArray: ");
+  //  Serial.println(from);
 
   msg += " ID:";
   msg += from;
   std::string str_msg = msg.c_str();
 
   // const char *tempC = tempToken.c_str();
-
+  // TODO move to one time initialise
   // Parse incoming message - assumes data format is as defined in sendMessage()
   // Set up delimiter strings for each data element
   std::string nDel = "N:";    // Delimiting string
@@ -263,7 +415,7 @@ void storeInNodeArray(uint32_t from, String msg)
 
   int node = atoi(subNodeToken.c_str()) - 1; // Adjusted for array (this is a local variable of node - NOT the const!!)
   nodearray[node].nodeid = node + 1;
-  // DONE check the lengths of the token are correct 
+  // DONE check the lengths of the token are correct
   std::string token;
   token = getToken(str_msg, nDel, d1Del);
   strcpy(nodearray[node].name, token.c_str()); // store the node name as string
@@ -280,10 +432,11 @@ void storeInNodeArray(uint32_t from, String msg)
   strcpy(nodearray[node].date, token.c_str()); // store the node date as string
   // token = getToken(str_msg, tDel, iDel);
   token = str_msg.substr(str_msg.find(tDel) + 5);
-  strcpy(nodearray[node].time, token.c_str());     // store the node time as string
+  strcpy(nodearray[node].time, token.c_str()); // store the node time as string
 
-    nodearray[node].from = from; // store the nodeid 
+  nodearray[node].from = from; // store the nodeid
   messageStored = true;
+  // Serial.println("Message Stored");
 }
 
 std::string getToken(std::string str_msg, std::string from, std::string to)
@@ -298,7 +451,7 @@ std::string getToken(std::string str_msg, std::string from, std::string to)
   return token;
 }
 
-void printNodeArray()
+bool printNodeArray(void *)
 {
   Serial.print("\nNode: ");
   Serial.print("\tData1: ");
@@ -325,7 +478,7 @@ void printNodeArray()
     Serial.print("\t\t");
     Serial.print(nodearray[node].status);
     Serial.print("\t\t");
-    printStr(nodearray[node].date, 12);
+    printStr(nodearray[node].date, 10);
     Serial.print("\t");
     printStr(nodearray[node].time, 9);
     Serial.print("\t");
@@ -336,7 +489,9 @@ void printNodeArray()
   }
   Serial.print("\n\n");
   // systemDate();     // TODO fix up data and time functions
+  return true;
 }
+// TODO re-instate bump and reset capability
 bool bumpLastCall(void *)
 {
   int bumpcount = 0;
@@ -347,17 +502,40 @@ bool bumpLastCall(void *)
   for (int i = 0; i <= NODE_COUNT - 1; ++i)
   {
     nodearray[i].lastcall++;
-    if (nodearray[i].status >= 0)
+    if (nodearray[i].status >= 0) // only track nodes that were online
     {
       bumpcount += nodearray[i].lastcall;
     }
     if (bumpcount >= MAXLASTCALL) // looks like we are not listening
     {
-       system_restart(); //ESP8266
-      // esp_restart(); // ESP32
+      // TODO enable auto reset
+      //  #ifdef ESP8266
+      //        system_restart(); // ESP8266
+      //  #else
+      //        esp_restart(); // ESP32
+      //  #endif
+      resetLastcall(bumpcount);
     }
   }
   return true;
+}
+
+void resetLastcall(int bumpcount)
+{
+  std::string numStr = std::to_string(bumpcount);
+
+  for (int i = 0; i <= NODE_COUNT - 1; ++i)
+  {
+    nodearray[i].lastcall = 0;
+
+    // set status to 9 to warn other nodes
+    nodearray[node].status = 9;
+
+#ifdef IOTCLOUD
+    // notification, message, priority
+    sendProwl("Lastcall reset", "360", 1);
+#endif // IOTCLOUD
+  }
 }
 
 // to avoid conflicts and racing issues initialise the store with a valid message
@@ -368,7 +546,7 @@ void initialiseMessage()
 
     String msg = " N:";
     msg += namearray[i];
-    msg += " D1:1.23 D2:5.67 D3:8.90 L:0 S:-1 Date:01/12/2000  Time:23:59:50 ID:0000000";
+    msg += " D1:1.23 D2:5.67 D3:8.90 L:0 S:-1 Date:**/**/****  Time:**:**:** ID:0000000";
     storeInNodeArray(0, msg);
   }
 }
