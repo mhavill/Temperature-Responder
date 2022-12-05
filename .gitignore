@@ -6,5 +6,4 @@
 .env.development
 src/secrets.h
 lib/EspProwl
-
-src\vanMesh-old.hpp
+puttyCOM9.log

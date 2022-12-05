@@ -374,14 +374,17 @@ void sendMessage()
     msg += nodearray[node].time;
     // msg += " ID:";
     // msg += nodearray[node].from;
-
+    if (verbose)
+    {
+      Serial.print("Sending msg: ");
+      Serial.println(msg.c_str());
+    }
     mesh.sendBroadcast(msg);
-
-    // printNodeArray();
+        // printNodeArray();
     // TODO change to timer
-    if (nodearray[Bridge02].status >= 0 && nodearray[Bridge02].lastcall <= 3)  // an active connection with Bridge
-      taskSendMessage.setInterval(random(TASK_SECOND * 10, TASK_SECOND * 15)); // slowed update
-    else
+    // if (nodearray[Bridge02].status >= 0 && nodearray[Bridge02].lastcall <= 3)  // an active connection with Bridge
+    //   taskSendMessage.setInterval(random(TASK_SECOND * 10, TASK_SECOND * 15)); // slowed update
+    // else
       taskSendMessage.setInterval(random(TASK_SECOND * 5, TASK_SECOND * 5)); // rapid update
   }
 }
@@ -510,13 +513,13 @@ bool bumpLastCall(void *)
     }
     if (bumpcount >= MAXLASTCALL) // looks like we are not listening
     {
-      // TODO enable auto reset
-      //  #ifdef ESP8266
-      //        system_restart(); // ESP8266
-      //  #else
-      //        esp_restart(); // ESP32
-      //  #endif
       resetLastcall(bumpcount);
+      // DONE enable auto reset
+#ifndef ESP32
+      system_restart(); // ESP8266
+#else
+      esp_restart(); // ESP32
+#endif
     }
   }
   return true;
